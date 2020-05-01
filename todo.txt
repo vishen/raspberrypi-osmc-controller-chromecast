@@ -1,0 +1,11 @@
+- Add functions:
+	- volume up and down
+	- mute -> OK
+	- stop
+	- previous track -> prev
+	- next track -> next
+	- rewind -> arrow_left
+	- fast-forward -> arrow_right
+- Add systemd unit
+- Monitor usage on raspberry pi
+
