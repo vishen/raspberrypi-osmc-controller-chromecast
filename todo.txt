@@ -1,11 +1,18 @@
-- Add functions:
-	- volume up and down
-	- mute -> OK
-	- stop
-	- previous track -> prev
-	- next track -> next
-	- rewind -> arrow_left
-	- fast-forward -> arrow_right
++ Add functions:
+	+ volume up and down
+	+ mute -> OK
+	+ stop
+	+ previous track -> prev
+	+ next track -> next
+	+ rewind -> arrow_left
+	+ fast-forward -> arrow_right
+- Add seperate goroutine that runs every <1 second and updates the chromecast to the desired state
+	- Should always get the latest state of the chromecast application?
+	- volume up and down should continue when holding down?
+	- rewind and fast-forward should continue exponentially when help down?
+- Dynamically find chromecast on network
+	- take a device name or type or uuid as cmdline arguments
+	- might also involve altering go-chromecast
 - Add systemd unit
 - Monitor usage on raspberry pi
 

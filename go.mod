@@ -23,3 +23,5 @@ require (
 	google.golang.org/genproto v0.0.0-20200430143042-b979b6f78d84 // indirect
 	google.golang.org/grpc v1.29.1 // indirect
 )
+
+replace github.com/vishen/go-chromecast => /Users/jonathanpentecost/src/go-chromecast

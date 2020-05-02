@@ -11,6 +11,7 @@ import (
 	"github.com/vishen/go-chromecast/application"
 )
 
+// TODO: Add a default way to get all this in go-chromecast dns package.
 type DNSEntry struct {
 	UUID string
 	Name string
@@ -37,6 +38,7 @@ func (e DNSEntry) GetPort() int {
 func main() {
 
 	// chromecast -- 192.168.86.30 8009
+	// TODO: Get dynamically...
 	e := DNSEntry{
 		Addr: "192.168.86.30",
 		Port: 8009,
@@ -88,26 +90,69 @@ func main() {
 	fmt.Printf("Waiting for input from controller...")
 	fmt.Printf("app=%#v\n", app.Application())
 	fmt.Printf("media=%#v\n", app.Media())
+	fmt.Printf("volume=%#v\n", app.Volume())
+
+	// TODO: Start a background goroutine that updates the state of
+	// the chromecast every 0.5 seconds. Then holding the volume up
+	// button will continually increase the volume. This can also
+	// update the state of the internal chromecast representation
+	// so it doesn't block the button being pushed.
 
 	paused := false
 	for fs := range resultsChan {
+		app.Update()
 		log.Printf("state=%#v\n", fs)
 		fmt.Printf("app=%#v\n", app.Application())
 		fmt.Printf("media=%#v\n", app.Media())
+		fmt.Printf("volume=%#v\n", app.Volume())
+		var err error
 		switch fs.Function {
+		case Function_STOP:
+			if fs.Action == Action_DOWN {
+				err = app.Stop()
+			}
 		case Function_PLAY_PAUSE:
-			if fs.Action == Action_UP {
-				var err error
+			if fs.Action == Action_DOWN {
 				if paused {
 					err = app.Pause()
 				} else {
 					err = app.Unpause()
 				}
-				if err != nil {
-					fmt.Printf("err: %#v\n", err)
-				}
 				paused = !paused
 			}
+		case Function_ARROW_UP:
+			if fs.Action == Action_DOWN {
+				err = app.SetVolume(app.Volume().Level + 0.05)
+			}
+		case Function_ARROW_DOWN:
+			if fs.Action == Action_DOWN {
+				err = app.SetVolume(app.Volume().Level - 0.05)
+			}
+		case Function_ARROW_LEFT:
+			if fs.Action == Action_DOWN {
+				// TODO: ARROW_{LEFT,RIGHT} should be exponential if
+				// pushed repeatedly over a short period of time.
+				err = app.Seek(-1) // In Seconds
+			}
+		case Function_ARROW_RIGHT:
+			if fs.Action == Action_DOWN {
+				err = app.Seek(1) // In Seconds
+			}
+		case Function_OK:
+			if fs.Action == Action_DOWN {
+				err = app.SetMuted(!app.Volume().Muted)
+			}
+		case Function_PREV:
+			if fs.Action == Action_DOWN {
+				err = app.Previous()
+			}
+		case Function_NEXT:
+			if fs.Action == Action_DOWN {
+				err = app.Next()
+			}
+		}
+		if err != nil {
+			fmt.Printf("err: %#v\n", err)
 		}
 	}
 }
