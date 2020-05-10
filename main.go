@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -9,50 +11,37 @@ import (
 	"time"
 
 	"github.com/vishen/go-chromecast/application"
+	"github.com/vishen/go-chromecast/dns"
 )
 
-// TODO: Add a default way to get all this in go-chromecast dns package.
-type DNSEntry struct {
-	UUID string
-	Name string
-	Addr string
-	Port int
-}
-
-func (e DNSEntry) GetUUID() string {
-	return e.UUID
-}
-
-func (e DNSEntry) GetName() string {
-	return e.Name
-}
-
-func (e DNSEntry) GetAddr() string {
-	return e.Addr
-}
-
-func (e DNSEntry) GetPort() int {
-	return e.Port
-}
+var (
+	castDeviceName   = flag.String("device-name", "", "chromecast device name to use")
+	networkInterface = flag.String("iface", "", "network interface to use for chromecast lookup")
+)
 
 func main() {
+	flag.Parse()
 
-	// chromecast -- 192.168.86.30 8009
-	// TODO: Get dynamically...
-	e := DNSEntry{
-		Addr: "192.168.86.30",
-		Port: 8009,
+	if *castDeviceName == "" {
+		log.Printf("missing -device-name argument\n")
+		return
 	}
 
-	iface, err := net.InterfaceByName("wlan0")
+	var iface *net.Interface
+	if *networkInterface != "" {
+		var err error
+		iface, err = net.InterfaceByName(*networkInterface)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	entry, err := dns.DiscoverCastDNSEntryByName(context.Background(), iface, *castDeviceName)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	app := application.NewApplication(iface, true, true)
-	if err := app.Start(e); err != nil {
-		log.Fatal(err)
-	}
+	fmt.Printf("Found cast dns entry: %#v\n", entry)
 
 	filenames := []string{
 		"/dev/hidraw0",
@@ -87,20 +76,36 @@ func main() {
 		}(f)
 	}
 
-	fmt.Printf("Waiting for input from controller...")
-	fmt.Printf("app=%#v\n", app.Application())
-	fmt.Printf("media=%#v\n", app.Media())
-	fmt.Printf("volume=%#v\n", app.Volume())
-
 	// TODO: Start a background goroutine that updates the state of
 	// the chromecast every 0.5 seconds. Then holding the volume up
 	// button will continually increase the volume. This can also
 	// update the state of the internal chromecast representation
 	// so it doesn't block the button being pushed.
 
+	appOptions := []application.ApplicationOption{
+		application.WithDebug(true),
+		application.WithCacheDisabled(true),
+		application.WithIface(iface),
+		application.WithConnectionRetries(1),
+	}
+	app := application.NewApplication(appOptions...)
+	if err := app.Start(entry); err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Waiting for input from controller...")
+	fmt.Printf("app=%#v\n", app.Application())
+	fmt.Printf("media=%#v\n", app.Media())
+	fmt.Printf("volume=%#v\n", app.Volume())
+
 	paused := false
 	for fs := range resultsChan {
-		app.Update()
+		if err := app.Update(); err != nil {
+			app = application.NewApplication(appOptions...)
+			if err := app.Start(entry); err != nil {
+				log.Fatal(err)
+			}
+		}
 		log.Printf("state=%#v\n", fs)
 		fmt.Printf("app=%#v\n", app.Application())
 		fmt.Printf("media=%#v\n", app.Media())

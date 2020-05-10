@@ -24,4 +24,4 @@ require (
 	google.golang.org/grpc v1.29.1 // indirect
 )
 
-replace github.com/vishen/go-chromecast => /Users/jonathanpentecost/src/go-chromecast
+// replace github.com/vishen/go-chromecast => /Users/jonathanpentecost/src/go-chromecast

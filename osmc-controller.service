@@ -1,0 +1,13 @@
+[Unit]
+Description=OSMC Remote for Chromecast
+After=network-online.target
+
+[Service]
+Type=simple
+PIDFile=/var/run/osmc-controller-chromecast.pid
+ExecStart=/home/pi/osmc-controller/bin/osmc-controller
+ExecReload=/bin/kill -SIGTERM $MAINPID
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
