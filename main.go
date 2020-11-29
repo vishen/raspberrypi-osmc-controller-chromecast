@@ -89,7 +89,7 @@ func main() {
 		application.WithConnectionRetries(1),
 	}
 	app := application.NewApplication(appOptions...)
-	if err := app.Start(entry); err != nil {
+	if err := app.Start(entry.GetAddr(), entry.GetPort()); err != nil {
 		log.Fatal(err)
 	}
 
@@ -101,8 +101,14 @@ func main() {
 	paused := false
 	for fs := range resultsChan {
 		if err := app.Update(); err != nil {
+			// If we can't update the application for whatever reason, try
+			// and do another DNS look-up and connect to the application
+			entry, err := dns.DiscoverCastDNSEntryByName(context.Background(), iface, *castDeviceName)
+			if err != nil {
+				log.Fatal(err)
+			}
 			app = application.NewApplication(appOptions...)
-			if err := app.Start(entry); err != nil {
+			if err := app.Start(entry.GetAddr(), entry.GetPort()); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -110,6 +116,13 @@ func main() {
 		fmt.Printf("app=%#v\n", app.Application())
 		fmt.Printf("media=%#v\n", app.Media())
 		fmt.Printf("volume=%#v\n", app.Volume())
+
+		if app.Media() != nil && app.Media().PlayerState == "PAUSED" {
+			paused = true
+		} else {
+			paused = false
+		}
+
 		var err error
 		switch fs.Function {
 		case Function_STOP:
@@ -119,11 +132,11 @@ func main() {
 		case Function_PLAY_PAUSE:
 			if fs.Action == Action_DOWN {
 				if paused {
-					err = app.Pause()
-				} else {
 					err = app.Unpause()
+				} else {
+					err = app.Pause()
 				}
-				paused = !paused
+				// paused = !paused
 			}
 		case Function_ARROW_UP:
 			if fs.Action == Action_DOWN {
